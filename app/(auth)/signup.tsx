@@ -38,7 +38,6 @@ export default function SignUpScreen() {
       name: validated.name,
       university: validated.university,
       studentId: validated.studentId,
-      role: 'student',
     });
 
     router.replace('/(app)/(tabs)');

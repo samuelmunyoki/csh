@@ -44,6 +44,34 @@ export default function AppLayout() {
         }}
       />
       <Stack.Screen name="profile" options={{ title: 'Profile' }} />
+      <Stack.Screen
+        name="admin-moderation"
+        options={{
+          title: 'Moderation',
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
+        name="admin-products"
+        options={{
+          title: 'Product Approvals',
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
+        name="donations"
+        options={{
+          title: 'Donations',
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
+        name="my-items"
+        options={{
+          title: 'My Items',
+          presentation: 'modal',
+        }}
+      />
     </Stack>
   );
 }

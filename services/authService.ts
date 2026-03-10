@@ -9,9 +9,20 @@ import {
   updateProfile,
   User as FirebaseUser,
 } from 'firebase/auth';
-import { ref, set, get, update } from 'firebase/database';
+import { ref, set, get, update, query, limitToFirst } from 'firebase/database';
 
 export class AuthService {
+  static async isFirstUser(): Promise<boolean> {
+    try {
+      const usersRef = ref(db, 'users');
+      const snapshot = await get(usersRef);
+      return !snapshot.exists() || Object.keys(snapshot.val() || {}).length === 0;
+    } catch (error) {
+      console.error('[AuthService] Error checking if first user:', error);
+      return false;
+    }
+  }
+
   static async signUp(
     email: string,
     password: string,
@@ -21,13 +32,16 @@ export class AuthService {
       // Create Firebase auth user
       const { user: firebaseUser } = await createUserWithEmailAndPassword(auth, email, password);
 
+      // Check if this is the first user
+      const isFirstUser = await this.isFirstUser();
+
       // Create user profile in Realtime Database
       const userProfile: User = {
         id: firebaseUser.uid,
         email,
         name: userData.name || email.split('@')[0],
         university: userData.university || '',
-        role: userData.role || 'admin',
+        role: isFirstUser ? 'admin' : 'student', // First user is admin, others are students
         createdAt: Date.now(),
         updatedAt: Date.now(),
         completedTransactions: 0,
