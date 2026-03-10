@@ -8,6 +8,9 @@
     "scheme": "campushare",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "androidStatusBar": {
+      "translucent": true
+    },
     "ios": {
       "supportsTablet": true
     },
@@ -22,6 +25,7 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
+      "bundler": "metro",
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
