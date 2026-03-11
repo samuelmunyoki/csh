@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LogOutIcon, SettingsIcon, ShoppingBagIcon, HeartIcon } from 'lucide-react-native';
+import { LogOutIcon, SettingsIcon, ShoppingBagIcon, HeartIcon, ShieldIcon, CheckSquareIcon } from 'lucide-react-native';
 import { useAuthStore } from '@/store/useAuthStore';
 
 export default function ProfileScreen() {
@@ -80,8 +80,8 @@ export default function ProfileScreen() {
             <Text className="text-gray-600 text-sm mt-1">Rating</Text>
           </View>
           <View className="items-center">
-            <Text className="text-2xl font-bold text-blue-600">
-              {user?.role === 'admin' ? 'Vendor' : 'Student'}
+            <Text className="text-2xl font-bold text-blue-600 capitalize">
+              {user?.role}
             </Text>
             <Text className="text-gray-600 text-sm mt-1">Role</Text>
           </View>
@@ -100,6 +100,26 @@ export default function ProfileScreen() {
           label="Saved Items"
           onPress={() => router.push('/(app)/(tabs)/saved')}
         />
+        
+        {/* Admin Only Options */}
+        {user?.role === 'admin' && (
+          <>
+            <View className="bg-blue-50 px-4 py-2 mt-2 mb-2 rounded-lg">
+              <Text className="text-blue-700 font-semibold text-sm">Admin Panel</Text>
+            </View>
+            <MenuOption
+              icon={CheckSquareIcon}
+              label="Product Approvals"
+              onPress={() => router.push('/(app)/admin-products')}
+            />
+            <MenuOption
+              icon={ShieldIcon}
+              label="Moderation"
+              onPress={() => router.push('/(app)/admin-moderation')}
+            />
+          </>
+        )}
+        
         <MenuOption
           icon={SettingsIcon}
           label="Settings"

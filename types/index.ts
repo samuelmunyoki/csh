@@ -6,7 +6,7 @@ export interface User {
   avatar?: string;
   university: string;
   studentId?: string;
-  role: 'student' | 'vendor' | 'admin';
+  role: 'student' | 'admin';
   createdAt: number;
   updatedAt: number;
   rating?: number;
@@ -26,6 +26,7 @@ export interface MarketplaceItem {
   condition: 'new' | 'like-new' | 'good' | 'fair';
   location?: string;
   status: 'active' | 'sold' | 'removed';
+  approvalStatus: 'pending' | 'approved' | 'rejected';
   createdAt: number;
   updatedAt: number;
   views?: number;

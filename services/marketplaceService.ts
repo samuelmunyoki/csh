@@ -19,6 +19,7 @@ export class MarketplaceService {
         condition: item.condition || 'good',
         location: item.location || '',
         status: 'active',
+        approvalStatus: 'pending',
         createdAt: Date.now(),
         updatedAt: Date.now(),
         views: 0,
@@ -76,8 +77,8 @@ export class MarketplaceService {
         items = items.filter((item) => item.category === category);
       }
 
-      // Filter only active items
-      items = items.filter((item) => item.status === 'active');
+      // Filter only active and approved items
+      items = items.filter((item) => item.status === 'active' && item.approvalStatus === 'approved');
 
       // Sort by creation date (newest first)
       items.sort((a, b) => b.createdAt - a.createdAt);
@@ -234,6 +235,60 @@ export class MarketplaceService {
       return items;
     } catch (error: any) {
       throw new Error(error.message || 'Failed to fetch saved items');
+    }
+  }
+
+  static async getPendingItems(): Promise<MarketplaceItem[]> {
+    try {
+      const itemsRef = ref(db, 'marketplace_items');
+      const snapshot = await get(itemsRef);
+
+      if (!snapshot.exists()) {
+        return [];
+      }
+
+      const items = Object.values(snapshot.val()) as MarketplaceItem[];
+      return items.filter((item) => item.approvalStatus === 'pending');
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to fetch pending items');
+    }
+  }
+
+  static async approveItem(itemId: string): Promise<MarketplaceItem> {
+    try {
+      const itemRef = ref(db, `marketplace_items/${itemId}`);
+      await update(itemRef, {
+        approvalStatus: 'approved',
+        updatedAt: Date.now(),
+      });
+
+      const snapshot = await get(itemRef);
+      if (!snapshot.exists()) {
+        throw new Error('Item not found');
+      }
+
+      return snapshot.val() as MarketplaceItem;
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to approve item');
+    }
+  }
+
+  static async rejectItem(itemId: string): Promise<MarketplaceItem> {
+    try {
+      const itemRef = ref(db, `marketplace_items/${itemId}`);
+      await update(itemRef, {
+        approvalStatus: 'rejected',
+        updatedAt: Date.now(),
+      });
+
+      const snapshot = await get(itemRef);
+      if (!snapshot.exists()) {
+        throw new Error('Item not found');
+      }
+
+      return snapshot.val() as MarketplaceItem;
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to reject item');
     }
   }
 }

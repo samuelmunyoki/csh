@@ -10,19 +10,39 @@ import {
 import { useRouter } from 'expo-router';
 import { formatDistanceToNow } from 'date-fns';
 import { MessagingService } from '@/services/messagingService';
+import { AuthService } from '@/services/authService';
 import { useAuthStore } from '@/store/useAuthStore';
-import { Conversation } from '@/types';
+import { Conversation, User } from '@/types';
 
 export default function MessagesScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [users, setUsers] = useState<Record<string, User>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
-      const unsubscribe = MessagingService.subscribeToConversations(user.id, (convs) => {
+      const unsubscribe = MessagingService.subscribeToConversations(user.id, async (convs) => {
         setConversations(convs);
+
+        // Fetch user info for each conversation participant
+        const userMap: Record<string, User> = {};
+        for (const conv of convs) {
+          for (const participantId of conv.participants) {
+            if (participantId !== user.id && !userMap[participantId]) {
+              try {
+                const userData = await AuthService.getUserById(participantId);
+                if (userData) {
+                  userMap[participantId] = userData;
+                }
+              } catch (error) {
+                console.error('[MessagesScreen] Error fetching user:', error);
+              }
+            }
+          }
+        }
+        setUsers(userMap);
         setLoading(false);
       });
 
@@ -38,20 +58,41 @@ export default function MessagesScreen() {
   };
 
   const renderConversationCard = ({ item }: { item: Conversation }) => {
-    const participantId = Object.keys(item.participants).find((id) => id !== user?.id);
+    const participantId = item.participants.find((id) => id !== user?.id);
+    const participantUser = participantId ? users[participantId] : null;
 
     return (
       <TouchableOpacity
         onPress={() => handleConversationPress(item.id)}
-        className="bg-white px-4 py-3 border-b border-gray-100 flex-row items-center"
+        className={`bg-white px-4 py-3 border-b border-gray-100 flex-row items-center ${
+          item.unreadCount > 0 ? 'bg-blue-50' : ''
+        }`}
       >
-        <View className="w-12 h-12 rounded-full bg-gray-300 mr-3" />
+        {participantUser?.avatar ? (
+          <Image
+            source={{ uri: participantUser.avatar }}
+            className="w-12 h-12 rounded-full mr-3"
+          />
+        ) : (
+          <View className="w-12 h-12 rounded-full bg-blue-300 mr-3 items-center justify-center">
+            <Text className="text-white font-bold text-lg">
+              {participantUser?.name?.charAt(0)?.toUpperCase() || '?'}
+            </Text>
+          </View>
+        )}
+
         <View className="flex-1">
-          <Text className="font-semibold text-gray-900">{participantId}</Text>
-          <Text className="text-gray-600 text-sm mt-1" numberOfLines={1}>
+          <Text className={`font-semibold text-gray-900 ${item.unreadCount > 0 ? 'font-bold' : ''}`}>
+            {participantUser?.name || 'Unknown'}
+          </Text>
+          <Text
+            className={`text-sm mt-1 ${item.unreadCount > 0 ? 'text-gray-800 font-semibold' : 'text-gray-600'}`}
+            numberOfLines={1}
+          >
             {item.lastMessage?.content || 'No messages yet'}
           </Text>
         </View>
+
         <View className="items-end">
           <Text className="text-gray-500 text-xs">
             {item.lastMessageAt ? formatDistanceToNow(item.lastMessageAt, { addSuffix: true }) : ''}

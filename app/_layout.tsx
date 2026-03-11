@@ -7,14 +7,17 @@ import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-
 // 1. Import LogBox to hide the internal library warning
 import { LogBox } from 'react-native'; 
 import { useAuthStore } from '@/store/useAuthStore';
+import { useLoadingStore } from '@/store/useLoadingStore';
 import { NotificationService } from '@/services/notificationService';
 import { AuthService } from '@/services/authService';
+import { LoadingOverlay } from '@/components/loading-overlay';
 
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const { setUser } = useAuthStore();
+  const { isLoading, loadingMessage } = useLoadingStore();
   const [isReady, setIsReady] = React.useState(false);
 
   useEffect(() => {
@@ -54,6 +57,9 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(app)" options={{ headerShown: false }} />
       </Stack>
+      
+      {/* Global Loading Overlay */}
+      <LoadingOverlay visible={isLoading} message={loadingMessage} />
     </SafeAreaView>
   );
 }

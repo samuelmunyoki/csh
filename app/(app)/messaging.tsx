@@ -15,9 +15,12 @@ import { formatDistanceToNow } from 'date-fns';
 import { SendIcon, ArrowLeftIcon } from 'lucide-react-native';
 import { AuthService } from '@/services/authService';
 import { MessagingService } from '@/services/messagingService';
+import { TransactionService } from '@/services/transactionService';
+import { DonationService } from '@/services/donationService';
 import { useAuthStore } from '@/store/useAuthStore';
-import { Message } from '@/types';
+import { Message, Transaction, Donation } from '@/types';
 import { User } from 'firebase/auth';
+import { ShoppingBagIcon, GiftIcon, CheckCircleIcon, ClockIcon } from 'lucide-react-native';
 
 export default function MessagingScreen() {
   const router = useRouter();
@@ -28,8 +31,11 @@ export default function MessagingScreen() {
   const [messageText, setMessageText] = useState('');
   const [loading, setLoading] = useState(true);
   const [otherUser, setOtherUser] = useState<User | null>(null);
+  const [transaction, setTransaction] = useState<Transaction | null>(null);
+  const [donation, setDonation] = useState<Donation | null>(null);
 
   const conversationId = params.conversationId as string;
+  const transactionId = params.transactionId as string;
 
   useEffect(() => {
     if (!conversationId || !user) return;
@@ -48,7 +54,42 @@ export default function MessagingScreen() {
       }
     };
 
+    // Fetch transaction/donation context if available
+    const fetchContext = async () => {
+      try {
+        if (transactionId) {
+          const trans = await TransactionService.getTransactionById(transactionId);
+          if (trans) setTransaction(trans);
+        } else {
+          // Try to find transaction between users
+          const userTransactions = await TransactionService.getUserTransactions(user.id);
+          const relatedTrans = userTransactions.find(
+            (t) =>
+              (t.buyerId === user.id && t.vendorId === otherUserId) ||
+              (t.vendorId === user.id && t.buyerId === otherUserId)
+          );
+          if (relatedTrans) setTransaction(relatedTrans);
+
+          // Also check for donations
+          const userDonations = await Promise.all([
+            DonationService.getUserDonationsMade(user.id),
+            DonationService.getUserDonationsReceived(user.id),
+          ]);
+          const allDonations = [...userDonations[0], ...userDonations[1]];
+          const relatedDonation = allDonations.find(
+            (d) =>
+              (d.donorId === user.id && d.recipientId === otherUserId) ||
+              (d.recipientId === user.id && d.donorId === otherUserId)
+          );
+          if (relatedDonation) setDonation(relatedDonation);
+        }
+      } catch (error) {
+        console.error('[MessagingScreen] Error fetching context:', error);
+      }
+    };
+
     fetchOtherUser();
+    fetchContext();
 
     // Subscribe to messages
     const unsubscribe = MessagingService.subscribeToMessages(conversationId, (msgs) => {
@@ -64,7 +105,7 @@ export default function MessagingScreen() {
     });
 
     return () => unsubscribe();
-  }, [conversationId, user]);
+  }, [conversationId, user, transactionId]);
 
   const handleSendMessage = async () => {
     if (!messageText.trim() || !user) return;
@@ -134,6 +175,45 @@ export default function MessagingScreen() {
           </View>
         )}
       </View>
+
+      {/* Transaction/Donation Context */}
+      {transaction && (
+        <View className="bg-blue-50 border-b border-blue-200 px-4 py-3">
+          <View className="flex-row items-center gap-3">
+            <ShoppingBagIcon size={20} color="#2563eb" />
+            <View className="flex-1">
+              <Text className="font-semibold text-gray-900 text-sm">Purchase</Text>
+              <Text className="text-gray-600 text-xs">
+                ${transaction.amount} - {transaction.status === 'completed' ? 'Completed' : 'In Progress'}
+              </Text>
+            </View>
+            {transaction.status === 'completed' && (
+              <CheckCircleIcon size={18} color="#10b981" />
+            )}
+            {transaction.status === 'initiated' && (
+              <ClockIcon size={18} color="#f59e0b" />
+            )}
+          </View>
+        </View>
+      )}
+
+      {donation && (
+        <View className="bg-green-50 border-b border-green-200 px-4 py-3">
+          <View className="flex-row items-center gap-3">
+            <GiftIcon size={20} color="#10b981" />
+            <View className="flex-1">
+              <Text className="font-semibold text-gray-900 text-sm">Donation Request</Text>
+              <Text className="text-gray-600 text-xs capitalize">{donation.status}</Text>
+            </View>
+            {donation.status === 'accepted' && (
+              <CheckCircleIcon size={18} color="#10b981" />
+            )}
+            {donation.status === 'pending' && (
+              <ClockIcon size={18} color="#f59e0b" />
+            )}
+          </View>
+        </View>
+      )}
 
       {/* Messages */}
       {loading ? (

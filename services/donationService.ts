@@ -3,6 +3,15 @@ import { Donation } from '@/types';
 import { ref, set, get, update, push, query, orderByChild, limitToLast } from 'firebase/database';
 
 export class DonationService {
+  static async requestDonation(
+    itemId: string,
+    donorId: string,
+    recipientId: string,
+    message?: string
+  ): Promise<Donation> {
+    return this.createDonation(itemId, donorId, recipientId, message);
+  }
+
   static async createDonation(
     itemId: string,
     donorId: string,
