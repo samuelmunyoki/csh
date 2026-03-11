@@ -12,15 +12,19 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useLoadingStore } from '@/store/useLoadingStore';
 import { validateEmail } from '@/utils/validation';
+import { getFirebaseErrorMessage } from '@/utils/firebaseErrors';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { signIn, loading, error } = useAuthStore();
+  const { signIn, loading } = useAuthStore();
+  const { setLoading } = useLoadingStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [generalError, setGeneralError] = useState('');
 
   const validateForm = () => {
     let isValid = true;
@@ -47,10 +51,19 @@ export default function LoginScreen() {
     if (!validateForm()) return;
 
     try {
+      setGeneralError('');
+      setLoading(true, 'Signing in...');
+      
       await signIn(email, password);
+      
+      setLoading(false);
       router.replace('/(app)/(tabs)');
     } catch (error: any) {
-      Alert.alert('Sign In Failed', error.message || 'Please check your credentials and try again');
+      setLoading(false);
+      const errorMessage = getFirebaseErrorMessage(error);
+      setGeneralError(errorMessage);
+      
+      console.error('[LoginScreen] Sign in error:', error);
     }
   };
 
@@ -71,9 +84,9 @@ export default function LoginScreen() {
           </View>
 
           {/* Error Message */}
-          {error && (
+          {generalError && (
             <View className="bg-red-100 border border-red-400 rounded-lg px-4 py-3 mb-6">
-              <Text className="text-red-800">{error}</Text>
+              <Text className="text-red-800 text-sm">{generalError}</Text>
             </View>
           )}
 

@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeftIcon, HeartIcon, MessageCircleIcon, ShareIcon } from 'lucide-react-native';
+import { ArrowLeftIcon, HeartIcon } from 'lucide-react-native';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useMarketplaceStore } from '@/store/useMarketplaceStore';
 import { useLoadingStore } from '@/store/useLoadingStore';
@@ -29,16 +29,6 @@ export default function ItemDetailsScreen() {
       fetchItemById(params.id as string);
     }
   }, [params.id]);
-
-  const handleMessage = () => {
-    if (!selectedItem) return;
-    router.push({
-      pathname: '/(app)/messaging',
-      params: {
-        conversationId: [user?.id, selectedItem.vendorId].sort().join('_'),
-      },
-    });
-  };
 
   const handleSaveItem = () => {
     Alert.alert('Save Item', 'Item has been saved to your collection');
@@ -78,17 +68,11 @@ export default function ItemDetailsScreen() {
               await MarketplaceService.markItemAsSold(selectedItem.id);
 
               setLoading(false);
-              Alert.alert('Success', 'Purchase initiated! You can now message the seller to arrange pickup.');
+              Alert.alert('Success', 'Purchase initiated! Please coordinate with the seller to arrange pickup.');
               
-              // Navigate to messaging
+              // Go back to marketplace
               setTimeout(() => {
-                router.push({
-                  pathname: '/(app)/messaging',
-                  params: {
-                    conversationId: [user.id, selectedItem.vendorId].sort().join('_'),
-                    transactionId: transaction.id,
-                  },
-                });
+                router.back();
               }, 500);
             } catch (error: any) {
               setLoading(false);
@@ -136,14 +120,9 @@ export default function ItemDetailsScreen() {
               setLoading(false);
               Alert.alert('Success', 'Donation request sent! The donor will review it.');
 
-              // Navigate to messaging to wait for response
+              // Go back to marketplace
               setTimeout(() => {
-                router.push({
-                  pathname: '/(app)/messaging',
-                  params: {
-                    conversationId: [user.id, selectedItem.vendorId].sort().join('_'),
-                  },
-                });
+                router.back();
               }, 500);
             } catch (error: any) {
               setLoading(false);
@@ -273,7 +252,7 @@ export default function ItemDetailsScreen() {
       <View className="bg-white border-t border-gray-200 px-4 py-4">
         {user?.id !== selectedItem.vendorId ? (
           <>
-            <View className="flex-row gap-3 mb-3">
+            <View className="flex-row gap-3">
               <TouchableOpacity
                 onPress={handleBuyItem}
                 className="flex-1 bg-blue-600 rounded-lg px-4 py-3 items-center"
@@ -287,15 +266,6 @@ export default function ItemDetailsScreen() {
               >
                 <Text className="text-white font-semibold">Request</Text>
                 <Text className="text-green-100 text-xs mt-1">Donation</Text>
-              </TouchableOpacity>
-            </View>
-            <View className="flex-row gap-3">
-              <TouchableOpacity
-                onPress={handleMessage}
-                className="flex-1 bg-gray-600 rounded-lg px-4 py-3 flex-row items-center justify-center"
-              >
-                <MessageCircleIcon size={20} color="white" />
-                <Text className="text-white font-semibold ml-2">Message</Text>
               </TouchableOpacity>
             </View>
           </>

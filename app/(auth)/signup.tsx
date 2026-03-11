@@ -12,12 +12,15 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useLoadingStore } from '@/store/useLoadingStore';
 import { validateData, signUpSchema } from '@/utils/validation';
+import { getFirebaseErrorMessage } from '@/utils/firebaseErrors';
 import z from 'zod';
 
 export default function SignUpScreen() {
   const router = useRouter();
-  const { signUp, loading, error } = useAuthStore();
+  const { signUp, loading } = useAuthStore();
+  const { setLoading } = useLoadingStore();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -27,40 +30,48 @@ export default function SignUpScreen() {
     confirmPassword: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [generalError, setGeneralError] = useState('');
 
   const handleSignUp = async () => {
-  try {
-    setErrors({});
+    try {
+      setErrors({});
+      setGeneralError('');
 
-    const validated = await validateData(signUpSchema, formData);
+      const validated = await validateData(signUpSchema, formData);
 
-    await signUp(validated.email, validated.password, {
-      name: validated.name,
-      university: validated.university,
-      studentId: validated.studentId,
-    });
+      setLoading(true, 'Creating your account...');
 
-    router.replace('/(app)/(tabs)');
-  } catch (error: any) {
-    if (error instanceof z.ZodError) {
-      // Extract field-specific errors
-      const fieldErrors = error.flatten().fieldErrors;
-      const newErrors: Record<string, string> = {};
-
-      Object.entries(fieldErrors).forEach(([key, messages]) => {
-        if (messages && messages.length > 0) {
-          newErrors[key] = messages[0]; // show first error per field
-        }
+      await signUp(validated.email, validated.password, {
+        name: validated.name,
+        university: validated.university,
+        studentId: validated.studentId,
       });
 
-      setErrors(newErrors);
-    } else if (error.message) {
-      Alert.alert('Sign Up Failed', error.message);
-    } else {
-      Alert.alert('Sign Up Failed', 'Unknown error occurred');
+      setLoading(false);
+      router.replace('/(app)/(tabs)');
+    } catch (error: any) {
+      setLoading(false);
+
+      if (error instanceof z.ZodError) {
+        // Extract field-specific validation errors
+        const fieldErrors = error.flatten().fieldErrors;
+        const newErrors: Record<string, string> = {};
+
+        Object.entries(fieldErrors).forEach(([key, messages]) => {
+          if (messages && messages.length > 0) {
+            newErrors[key] = messages[0]; // show first error per field
+          }
+        });
+
+        setErrors(newErrors);
+      } else {
+        // Handle Firebase auth errors
+        const errorMessage = getFirebaseErrorMessage(error);
+        setGeneralError(errorMessage);
+        console.error('[SignupScreen] Sign up error:', error);
+      }
     }
-  }
-};
+  };
 
 
   return (
@@ -82,9 +93,9 @@ export default function SignUpScreen() {
           </View>
 
           {/* Error Message */}
-          {error && (
+          {generalError && (
             <View className="bg-red-100 border border-red-400 rounded-lg px-4 py-3 mb-4">
-              <Text className="text-red-800 text-sm">{error}</Text>
+              <Text className="text-red-800 text-sm">{generalError}</Text>
             </View>
           )}
 
