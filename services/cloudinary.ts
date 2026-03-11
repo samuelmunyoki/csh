@@ -8,19 +8,36 @@ const CLOUDINARY_UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESE
 export class CloudinaryService {
   static async uploadImage(
     imageUri: string,
-    folder: string = 'campushare-hub'
+    folder: string = 'campushare-hub',
+    onProgress?: (progress: number) => void
   ): Promise<CloudinaryUploadResponse> {
     try {
+      // Validate image URI
+      if (!this.validateImageUri(imageUri)) {
+        throw new Error('Invalid image format. Please use JPG, PNG, GIF, or WebP.');
+      }
+
+      // Check file size (5MB limit)
+      const fileInfo = await FileSystem.getInfoAsync(imageUri);
+      if (fileInfo.size && fileInfo.size > 5 * 1024 * 1024) {
+        throw new Error('Image size must be less than 5MB.');
+      }
+
+      onProgress?.(10);
+
       // Read the image file
       const base64 = await FileSystem.readAsStringAsync(imageUri, {
         encoding: FileSystem.EncodingType.Base64,
       });
+
+      onProgress?.(30);
 
       const formData = new FormData();
       formData.append('file', `data:image/jpeg;base64,${base64}`);
       formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET || '');
       formData.append('folder', folder);
       formData.append('resource_type', 'auto');
+      formData.append('tags', folder);
 
       const response = await axios.post(
         `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
@@ -29,8 +46,22 @@ export class CloudinaryService {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total) {
+              const percentCompleted = Math.round(
+                (progressEvent.loaded / progressEvent.total) * 60 + 30
+              );
+              onProgress?.(percentCompleted);
+            }
+          },
         }
       );
+
+      onProgress?.(100);
+
+      if (!response.data.public_id) {
+        throw new Error('No public ID returned from Cloudinary');
+      }
 
       return {
         public_id: response.data.public_id,
@@ -41,9 +72,22 @@ export class CloudinaryService {
         format: response.data.format,
         created_at: response.data.created_at,
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('[Cloudinary] Upload failed:', error);
-      throw new Error('Failed to upload image to Cloudinary');
+      
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        throw new Error('Cloudinary credentials are invalid. Please check your configuration.');
+      }
+      
+      if (error.response?.status === 400) {
+        throw new Error(error.response.data?.error?.message || 'Invalid image data');
+      }
+      
+      if (error.message.includes('timeout')) {
+        throw new Error('Image upload timed out. Please check your connection.');
+      }
+
+      throw error;
     }
   }
 

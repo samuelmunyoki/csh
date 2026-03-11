@@ -46,6 +46,7 @@ export default function CreateItemScreen() {
 
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const pickImage = async () => {
@@ -64,20 +65,27 @@ export default function CreateItemScreen() {
 
       if (!result.canceled) {
         setUploading(true);
+        setUploadProgress(0);
         try {
           const uploadedImage = await CloudinaryService.uploadImage(
             result.assets[0].uri,
-            'campushare-hub/marketplace'
+            'campushare-hub/marketplace',
+            (progress) => setUploadProgress(progress)
           );
           setImages([...images, uploadedImage.secure_url]);
-        } catch (error) {
-          Alert.alert('Upload Failed', 'Failed to upload image. Please try again.');
+          setUploadProgress(0);
+        } catch (error: any) {
+          console.error('[CreateItem] Upload error:', error);
+          const errorMessage = error.message || 'Failed to upload image. Please try again.';
+          Alert.alert('Upload Failed', errorMessage);
         } finally {
           setUploading(false);
+          setUploadProgress(0);
         }
       }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to pick image');
+    } catch (error: any) {
+      console.error('[CreateItem] Image picker error:', error);
+      Alert.alert('Error', error.message || 'Failed to pick image');
     }
   };
 
@@ -160,22 +168,36 @@ export default function CreateItemScreen() {
             />
 
             {images.length < 5 && (
-              <TouchableOpacity
-                onPress={pickImage}
-                disabled={uploading}
-                className="bg-white border-2 border-dashed border-gray-300 rounded-lg p-6 items-center"
-              >
-                {uploading ? (
-                  <ActivityIndicator color="#2563eb" />
-                ) : (
-                  <>
-                    <ImagePlusIcon size={32} color="#2563eb" />
-                    <Text className="text-gray-600 font-medium mt-2">
-                      Add Image ({images.length}/5)
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity
+                  onPress={pickImage}
+                  disabled={uploading}
+                  className="bg-white border-2 border-dashed border-gray-300 rounded-lg p-6 items-center"
+                >
+                  {uploading ? (
+                    <>
+                      <ActivityIndicator color="#2563eb" size="large" />
+                      <Text className="text-gray-600 font-medium mt-2">
+                        Uploading... {uploadProgress}%
+                      </Text>
+                      <View className="w-full bg-gray-200 rounded-full h-2 mt-3">
+                        <View
+                          className="bg-blue-600 h-2 rounded-full"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </View>
+                    </>
+                  ) : (
+                    <>
+                      <ImagePlusIcon size={32} color="#2563eb" />
+                      <Text className="text-gray-600 font-medium mt-2">
+                        Add Image ({images.length}/5)
+                      </Text>
+                      <Text className="text-gray-500 text-xs mt-1">Max 5MB per image</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </>
             )}
             {errors.images && (
               <Text className="text-red-600 text-sm mt-2">{errors.images}</Text>

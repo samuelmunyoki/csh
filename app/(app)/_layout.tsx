@@ -1,5 +1,7 @@
 import React from 'react';
 import { Redirect, Stack } from 'expo-router';
+import { TouchableOpacity } from 'react-native';
+import { ArrowLeftIcon } from 'lucide-react-native';
 import { useAuthStore } from '@/store/useAuthStore';
 
 export default function AppLayout() {
@@ -19,6 +21,7 @@ export default function AppLayout() {
       screenOptions={{
         headerShown: false,
         animationEnabled: true,
+        contentStyle: { backgroundColor: '#ffffff' },
       }}
     >
       <Stack.Screen name="(tabs)" options={{ title: 'Home' }} />
@@ -27,6 +30,13 @@ export default function AppLayout() {
         options={{
           title: 'Item Details',
           presentation: 'modal',
+          headerShown: true,
+          headerBackTitleVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => {}} className="p-2">
+              <ArrowLeftIcon size={24} color="#2563eb" />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Stack.Screen
@@ -34,13 +44,13 @@ export default function AppLayout() {
         options={{
           title: 'Create Item',
           presentation: 'modal',
-        }}
-      />
-      <Stack.Screen
-        name="messaging"
-        options={{
-          title: 'Messages',
-          presentation: 'modal',
+          headerShown: true,
+          headerBackTitleVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => {}} className="p-2">
+              <ArrowLeftIcon size={24} color="#2563eb" />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Stack.Screen name="profile" options={{ title: 'Profile' }} />
@@ -49,6 +59,13 @@ export default function AppLayout() {
         options={{
           title: 'Moderation',
           presentation: 'modal',
+          headerShown: true,
+          headerBackTitleVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => {}} className="p-2">
+              <ArrowLeftIcon size={24} color="#2563eb" />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Stack.Screen
@@ -56,6 +73,13 @@ export default function AppLayout() {
         options={{
           title: 'Product Approvals',
           presentation: 'modal',
+          headerShown: true,
+          headerBackTitleVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => {}} className="p-2">
+              <ArrowLeftIcon size={24} color="#2563eb" />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Stack.Screen
@@ -63,6 +87,13 @@ export default function AppLayout() {
         options={{
           title: 'Donations',
           presentation: 'modal',
+          headerShown: true,
+          headerBackTitleVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => {}} className="p-2">
+              <ArrowLeftIcon size={24} color="#2563eb" />
+            </TouchableOpacity>
+          ),
         }}
       />
       <Stack.Screen
@@ -70,6 +101,13 @@ export default function AppLayout() {
         options={{
           title: 'My Items',
           presentation: 'modal',
+          headerShown: true,
+          headerBackTitleVisible: false,
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => {}} className="p-2">
+              <ArrowLeftIcon size={24} color="#2563eb" />
+            </TouchableOpacity>
+          ),
         }}
       />
     </Stack>
