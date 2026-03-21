@@ -20,7 +20,7 @@ import z from 'zod';
 
 export default function SignUpScreen() {
   const router = useRouter();
-  const { signUp, loading } = useAuthStore();
+  const { signUp, adminSignUp, loading } = useAuthStore();
   const { setLoading } = useLoadingStore();
   const [isFirstUser, setIsFirstUser] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -67,8 +67,7 @@ export default function SignUpScreen() {
 
         setLoading(true, 'Creating admin account...');
 
-        const { adminSignUp: adminSignUpFn } = useAuthStore();
-        await adminSignUpFn(validated.username, validated.password, {
+        await adminSignUp(validated.username, validated.password, {
           name: validated.name,
         });
       } else {
