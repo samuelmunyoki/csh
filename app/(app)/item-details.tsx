@@ -21,6 +21,7 @@ import { TransactionService } from '@/services/transactionService';
 import { DonationService } from '@/services/donationService';
 import { MarketplaceService } from '@/services/marketplaceService';
 import { MessagingService } from '@/services/messagingService';
+import { formatPrice } from '@/utils/currency';
 
 export default function ItemDetailsScreen() {
   const router = useRouter();
@@ -31,6 +32,9 @@ export default function ItemDetailsScreen() {
 
   const [donationModalVisible, setDonationModalVisible] = useState(false);
   const [donationMessage, setDonationMessage] = useState('');
+  const [ratingModalVisible, setRatingModalVisible] = useState(false);
+  const [ratingScore, setRatingScore] = useState(5);
+  const [ratingComment, setRatingComment] = useState('');
 
   useEffect(() => {
     if (params.id) {
@@ -52,7 +56,7 @@ export default function ItemDetailsScreen() {
 
     Alert.alert(
       'Purchase Item',
-      `Buy "${selectedItem.title}" for $${selectedItem.price} (Payment: Cash)?`,
+      `Buy "${selectedItem.title}" for ${formatPrice(selectedItem.price)} (Payment: Cash)?`,
       [
         { text: 'Cancel', onPress: () => {} },
         {
@@ -76,13 +80,18 @@ export default function ItemDetailsScreen() {
               await MessagingService.sendMessage(
                 user.id,
                 selectedItem.vendorId,
-                `Hi! I just purchased "${selectedItem.title}" for $${selectedItem.price}. When can we arrange pickup?`
+                `Hi! I just purchased "${selectedItem.title}" for ${formatPrice(selectedItem.price)}. When can we arrange pickup?`
               );
 
               setLoading(false);
               Alert.alert('Success', 'Purchase initiated! Please coordinate with the seller to arrange pickup.');
 
-              setTimeout(() => router.back(), 500);
+              // Show rating prompt after a short delay
+              setTimeout(() => {
+                setRatingScore(5);
+                setRatingComment('');
+                setRatingModalVisible(true);
+              }, 500);
             } catch (error: any) {
               setLoading(false);
               Alert.alert('Error', error.message || 'Failed to process purchase');
@@ -141,6 +150,31 @@ export default function ItemDetailsScreen() {
     }
   };
 
+  const handleSubmitRating = async () => {
+    if (!user || !selectedItem) return;
+
+    try {
+      setLoading(true, 'Saving your rating...');
+
+      await TransactionService.rateUser(
+        user.id,
+        selectedItem.vendorId,
+        ratingScore,
+        ratingComment.trim()
+      );
+
+      setRatingModalVisible(false);
+      setRatingComment('');
+      setRatingScore(5);
+      setLoading(false);
+
+      Alert.alert('Thank You!', 'Your rating has been submitted successfully.');
+    } catch (error: any) {
+      setLoading(false);
+      Alert.alert('Error', error.message || 'Failed to save rating');
+    }
+  };
+
   if (loading || !selectedItem) {
     return (
       <View className="flex-1 justify-center items-center bg-white">
@@ -175,7 +209,7 @@ export default function ItemDetailsScreen() {
           <View className="flex-row justify-between items-start mb-4">
             <View className="flex-1">
               <Text className="text-2xl font-bold text-gray-900">{selectedItem.title}</Text>
-              <Text className="text-blue-600 text-2xl font-bold mt-2">${selectedItem.price}</Text>
+              <Text className="text-blue-600 text-2xl font-bold mt-2">{formatPrice(selectedItem.price)}</Text>
             </View>
             <TouchableOpacity onPress={handleSaveItem} className="p-2 rounded-full bg-gray-100">
               <HeartIcon size={24} color="#ef4444" />
@@ -311,6 +345,65 @@ export default function ItemDetailsScreen() {
                   className="flex-1 bg-green-600 rounded-lg py-3 items-center"
                 >
                   <Text className="text-white font-semibold">Send Request</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Rating Modal */}
+      <Modal
+        visible={ratingModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRatingModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          className="flex-1"
+        >
+          <View className="flex-1 justify-center items-center bg-black/50 px-6">
+            <View className="bg-white rounded-2xl p-6 w-full">
+              <Text className="text-gray-900 text-lg font-bold mb-1">Rate the Seller</Text>
+              <Text className="text-gray-500 text-sm mb-4">
+                How was your experience with {selectedItem?.vendor?.name}?
+              </Text>
+
+              {/* Star Rating */}
+              <View className="flex-row justify-center gap-2 mb-6">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <TouchableOpacity key={star} onPress={() => setRatingScore(star)}>
+                    <Text className="text-4xl">{star <= ratingScore ? '⭐' : '☆'}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Comment */}
+              <TextInput
+                value={ratingComment}
+                onChangeText={setRatingComment}
+                placeholder="Share your feedback (optional)..."
+                placeholderTextColor="#9ca3af"
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+                className="border border-gray-200 rounded-lg px-3 py-3 text-gray-900 text-sm mb-5"
+                style={{ minHeight: 80 }}
+              />
+
+              <View className="flex-row gap-3">
+                <TouchableOpacity
+                  onPress={() => setRatingModalVisible(false)}
+                  className="flex-1 bg-gray-100 rounded-lg py-3 items-center"
+                >
+                  <Text className="text-gray-700 font-semibold">Skip</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleSubmitRating}
+                  className="flex-1 bg-blue-600 rounded-lg py-3 items-center"
+                >
+                  <Text className="text-white font-semibold">Submit Rating</Text>
                 </TouchableOpacity>
               </View>
             </View>

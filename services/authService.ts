@@ -99,7 +99,14 @@ export class AuthService {
         throw toastError('User profile not found. Please contact support.');
       }
 
-      return snapshot.val() as User;
+      const userProfile = snapshot.val() as User;
+
+      // Check if account is frozen
+      if (userProfile.frozen) {
+        throw toastError(`Your account has been frozen. Reason: ${userProfile.frozenReason || 'No reason provided'}. Please contact support.`);
+      }
+
+      return userProfile;
     } catch (error: any) {
       handleError(error);
     }
@@ -178,5 +185,127 @@ export class AuthService {
     if (!/[a-z]/.test(password)) errors.push('One lowercase letter');
     if (!/[0-9]/.test(password)) errors.push('One number');
     return { valid: errors.length === 0, errors };
+  }
+
+  static async adminSignIn(username: string, password: string): Promise<User> {
+    try {
+      const adminRef = ref(db, `adminAccounts/${username}`);
+      const snapshot = await get(adminRef);
+
+      if (!snapshot.exists()) {
+        throw toastError('Admin account not found. Please check your username.');
+      }
+
+      const adminAccount = snapshot.val();
+
+      // Simple password comparison (in production, use bcrypt)
+      if (adminAccount.password !== password) {
+        throw toastError('Incorrect password. Please try again.');
+      }
+
+      // Get the admin user profile
+      const userSnapshot = await get(ref(db, `users/${adminAccount.userId}`));
+      if (!userSnapshot.exists()) {
+        throw toastError('Admin user profile not found. Please contact support.');
+      }
+
+      const userProfile = userSnapshot.val() as User;
+
+      // Check if account is frozen
+      if (userProfile.frozen) {
+        throw toastError('Your admin account has been frozen. Please contact support.');
+      }
+
+      toastSuccess('Admin login successful!');
+      return userProfile;
+    } catch (error: any) {
+      handleError(error);
+    }
+  }
+
+  static async createAdminAccount(username: string, password: string, userId: string): Promise<void> {
+    try {
+      const adminAccountRef = ref(db, `adminAccounts/${username}`);
+      await set(adminAccountRef, {
+        username,
+        password, // In production, should be hashed with bcrypt
+        userId,
+        createdAt: Date.now(),
+      });
+
+      // Update user to mark as admin account
+      await update(ref(db, `users/${userId}`), {
+        adminAccount: true,
+        username,
+      });
+
+      toastSuccess('Admin account created successfully!');
+    } catch (error: any) {
+      handleError(error);
+    }
+  }
+
+  static async freezeUserAccount(userId: string, reason?: string): Promise<void> {
+    try {
+      await update(ref(db, `users/${userId}`), {
+        frozen: true,
+        frozenReason: reason || 'Account frozen by admin',
+        frozenAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      toastSuccess('User account frozen successfully!');
+    } catch (error: any) {
+      handleError(error);
+    }
+  }
+
+  static async unfreezeUserAccount(userId: string): Promise<void> {
+    try {
+      await update(ref(db, `users/${userId}`), {
+        frozen: false,
+        frozenReason: undefined,
+        frozenAt: undefined,
+        updatedAt: Date.now(),
+      });
+      toastSuccess('User account unfrozen successfully!');
+    } catch (error: any) {
+      handleError(error);
+    }
+  }
+
+  static async deleteUserAccount(userId: string): Promise<void> {
+    try {
+      // Delete user profile
+      await set(ref(db, `users/${userId}`), null);
+
+      // Delete user's items
+      const itemsRef = ref(db, 'items');
+      const itemsSnapshot = await get(itemsRef);
+      if (itemsSnapshot.exists()) {
+        const items = itemsSnapshot.val();
+        for (const itemId in items) {
+          if (items[itemId].vendorId === userId) {
+            await set(ref(db, `items/${itemId}`), null);
+          }
+        }
+      }
+
+      // Delete user's messages
+      const messagesRef = ref(db, 'messages');
+      const messagesSnapshot = await get(messagesRef);
+      if (messagesSnapshot.exists()) {
+        const messages = messagesSnapshot.val();
+        for (const convId in messages) {
+          const conv = messages[convId];
+          if (conv.senderId === userId || conv.recipientId === userId) {
+            await set(ref(db, `messages/${convId}`), null);
+          }
+        }
+      }
+
+      toastSuccess('User account deleted successfully!');
+    } catch (error: any) {
+      handleError(error);
+    }
   }
 }

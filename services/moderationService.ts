@@ -125,6 +125,74 @@ export class ModerationService {
     }
   }
 
+  static async freezeUser(userId: string, reportId: string, reason?: string): Promise<void> {
+    try {
+      const userRef = ref(db, `users/${userId}`);
+
+      await update(userRef, {
+        frozen: true,
+        frozenReason: reason || 'Account frozen by admin',
+        frozenAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+
+      // Update report
+      await this.reviewReport(reportId, 'system', `User account frozen${reason ? ': ' + reason : ''}`, 'resolved');
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to freeze user');
+    }
+  }
+
+  static async deleteUser(userId: string, reportId: string): Promise<void> {
+    try {
+      // Delete user profile
+      const userRef = ref(db, `users/${userId}`);
+      await set(userRef, null);
+
+      // Delete user's items
+      const itemsRef = ref(db, 'items');
+      const itemsSnapshot = await get(itemsRef);
+      if (itemsSnapshot.exists()) {
+        const items = itemsSnapshot.val();
+        for (const itemId in items) {
+          if (items[itemId].vendorId === userId) {
+            await set(ref(db, `items/${itemId}`), null);
+          }
+        }
+      }
+
+      // Delete user's messages
+      const messagesRef = ref(db, 'messages');
+      const messagesSnapshot = await get(messagesRef);
+      if (messagesSnapshot.exists()) {
+        const messages = messagesSnapshot.val();
+        for (const convId in messages) {
+          const conv = messages[convId];
+          if (conv.senderId === userId || conv.recipientId === userId) {
+            await set(ref(db, `messages/${convId}`), null);
+          }
+        }
+      }
+
+      // Update report
+      await this.reviewReport(reportId, 'system', 'User account deleted', 'resolved');
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to delete user');
+    }
+  }
+
+  static async deleteProduct(itemId: string, reportId: string): Promise<void> {
+    try {
+      // Delete the item
+      await set(ref(db, `items/${itemId}`), null);
+
+      // Update report
+      await this.reviewReport(reportId, 'system', 'Product deleted', 'resolved');
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to delete product');
+    }
+  }
+
   static async getReportsForItem(itemId: string): Promise<ModerationReport[]> {
     try {
       const reportsRef = ref(db, 'moderation_reports');

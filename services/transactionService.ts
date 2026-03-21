@@ -1,5 +1,5 @@
 import { ref, set, get, update, push, remove } from 'firebase/database';
-import { Transaction } from '@/types';
+import { Transaction, Rating } from '@/types';
 import { db } from '@/firebaseConfig';
 
 export class TransactionService {
@@ -78,19 +78,38 @@ export class TransactionService {
   static async completeTransaction(transactionId: string): Promise<Transaction> {
     try {
       const transactionRef = ref(db, `transactions/${transactionId}`);
+      const snapshot = await get(transactionRef);
 
+      if (!snapshot.exists()) {
+        throw new Error('Transaction not found');
+      }
+
+      const transaction = snapshot.val() as Transaction;
+
+      // Update transaction status
       await update(transactionRef, {
         status: 'completed',
         completedAt: Date.now(),
         updatedAt: Date.now(),
       });
 
-      const snapshot = await get(transactionRef);
-      if (!snapshot.exists()) {
-        throw new Error('Transaction not found');
+      // Increment vendor's sales count
+      const vendorRef = ref(db, `users/${transaction.vendorId}`);
+      const vendorSnapshot = await get(vendorRef);
+
+      if (vendorSnapshot.exists()) {
+        const vendor = vendorSnapshot.val();
+        const currentSalesCount = vendor.salesCount || 0;
+
+        await update(vendorRef, {
+          salesCount: currentSalesCount + 1,
+          completedTransactions: (vendor.completedTransactions || 0) + 1,
+          updatedAt: Date.now(),
+        });
       }
 
-      return snapshot.val() as Transaction;
+      const updatedSnapshot = await get(transactionRef);
+      return updatedSnapshot.val() as Transaction;
     } catch (error: any) {
       throw new Error(error.message || 'Failed to complete transaction');
     }
@@ -187,5 +206,105 @@ export class TransactionService {
       completedTransactions: completed.length,
       rating: avgRating,
     };
+  }
+
+  // Rating System Methods
+  static async rateUser(
+    fromUserId: string,
+    toUserId: string,
+    score: number,
+    comment?: string
+  ): Promise<Rating> {
+    try {
+      if (score < 1 || score > 5) {
+        throw new Error('Rating score must be between 1 and 5');
+      }
+
+      const ratingsRef = ref(db, `users/${toUserId}/ratings`);
+      const newRatingRef = push(ratingsRef);
+
+      const rating: Rating = {
+        id: newRatingRef.key || '',
+        fromUserId,
+        toUserId,
+        score,
+        comment: comment || '',
+        createdAt: Date.now(),
+      };
+
+      await set(newRatingRef, rating);
+
+      // Update user's average rating
+      await this.updateUserAverageRating(toUserId);
+
+      return rating;
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to save rating');
+    }
+  }
+
+  static async getUserRatings(userId: string): Promise<Rating[]> {
+    try {
+      const ratingsRef = ref(db, `users/${userId}/ratings`);
+      const snapshot = await get(ratingsRef);
+
+      if (!snapshot.exists()) {
+        return [];
+      }
+
+      const ratingsData = snapshot.val();
+      return Object.values(ratingsData) as Rating[];
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to fetch ratings');
+    }
+  }
+
+  static async updateUserAverageRating(userId: string): Promise<number> {
+    try {
+      const ratings = await this.getUserRatings(userId);
+
+      if (ratings.length === 0) {
+        return 0;
+      }
+
+      const averageScore = ratings.reduce((sum, r) => sum + r.score, 0) / ratings.length;
+
+      const userRef = ref(db, `users/${userId}`);
+      await update(userRef, {
+        rating: Math.round(averageScore * 10) / 10, // Round to 1 decimal place
+        updatedAt: Date.now(),
+      });
+
+      return averageScore;
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to update rating');
+    }
+  }
+
+  static async checkIfUserCanRate(
+    fromUserId: string,
+    toUserId: string
+  ): Promise<boolean> {
+    try {
+      // Check if users have completed a transaction together
+      const transactionsRef = ref(db, 'transactions');
+      const snapshot = await get(transactionsRef);
+
+      if (!snapshot.exists()) {
+        return false;
+      }
+
+      const allTransactions = Object.values(snapshot.val()) as Transaction[];
+      const hasCompletedTransaction = allTransactions.some(
+        (t) =>
+          t.status === 'completed' &&
+          ((t.buyerId === fromUserId && t.vendorId === toUserId) ||
+            (t.buyerId === toUserId && t.vendorId === fromUserId))
+      );
+
+      return hasCompletedTransaction;
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to check rating eligibility');
+    }
   }
 }

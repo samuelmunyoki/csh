@@ -75,10 +75,101 @@ export default function AdminModerationScreen() {
     try {
       await ModerationService.removeItem(itemId, reportId);
       Alert.alert('Success', 'Item removed');
+      setSelectedReport(null);
       fetchPendingReports();
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to remove item');
     }
+  };
+
+  const handleDeleteProduct = async (reportId: string, itemId?: string) => {
+    if (!itemId) {
+      Alert.alert('Error', 'Item ID not found');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Product',
+      'Are you sure you want to permanently delete this product?',
+      [
+        { text: 'Cancel', onPress: () => {} },
+        {
+          text: 'Delete',
+          onPress: async () => {
+            try {
+              await ModerationService.deleteProduct(itemId, reportId);
+              Alert.alert('Success', 'Product deleted');
+              setSelectedReport(null);
+              fetchPendingReports();
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to delete product');
+            }
+          },
+          style: 'destructive',
+        },
+      ]
+    );
+  };
+
+  const handleFreezeAccount = async (reportId: string, userId?: string) => {
+    if (!userId) {
+      Alert.alert('Error', 'User ID not found');
+      return;
+    }
+
+    Alert.prompt(
+      'Freeze Account',
+      'Provide a reason for freezing (optional):',
+      [
+        {
+          text: 'Cancel',
+          onPress: () => {},
+          style: 'cancel',
+        },
+        {
+          text: 'Freeze',
+          onPress: async (reason) => {
+            try {
+              await ModerationService.freezeUser(userId, reportId, reason);
+              Alert.alert('Success', 'User account frozen');
+              setSelectedReport(null);
+              fetchPendingReports();
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to freeze account');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteAccount = async (reportId: string, userId?: string) => {
+    if (!userId) {
+      Alert.alert('Error', 'User ID not found');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Account',
+      'Are you sure? This will permanently delete the user account and all their data.',
+      [
+        { text: 'Cancel', onPress: () => {} },
+        {
+          text: 'Delete',
+          onPress: async () => {
+            try {
+              await ModerationService.deleteUser(userId, reportId);
+              Alert.alert('Success', 'User account deleted');
+              setSelectedReport(null);
+              fetchPendingReports();
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to delete account');
+            }
+          },
+          style: 'destructive',
+        },
+      ]
+    );
   };
 
   const handleBanUser = async (reportId: string, userId?: string) => {
@@ -95,6 +186,7 @@ export default function AdminModerationScreen() {
           try {
             await ModerationService.banUser(userId, reportId);
             Alert.alert('Success', 'User banned');
+            setSelectedReport(null);
             fetchPendingReports();
           } catch (error: any) {
             Alert.alert('Error', error.message || 'Failed to ban user');
@@ -197,27 +289,61 @@ export default function AdminModerationScreen() {
 
               <View className="gap-2">
                 {selectedReport.reportedItemId && (
-                  <TouchableOpacity
-                    onPress={() =>
-                      handleRemoveItem(selectedReport.id, selectedReport.reportedItemId)
-                    }
-                    className="bg-red-600 rounded px-4 py-3 flex-row items-center justify-center"
-                  >
-                    <XIcon size={18} color="white" />
-                    <Text className="text-white font-medium ml-2">Remove Item</Text>
-                  </TouchableOpacity>
+                  <>
+                    <TouchableOpacity
+                      onPress={() =>
+                        handleRemoveItem(selectedReport.id, selectedReport.reportedItemId)
+                      }
+                      className="bg-orange-600 rounded px-4 py-3 flex-row items-center justify-center"
+                    >
+                      <XIcon size={18} color="white" />
+                      <Text className="text-white font-medium ml-2">Remove Item</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() =>
+                        handleDeleteProduct(selectedReport.id, selectedReport.reportedItemId)
+                      }
+                      className="bg-red-600 rounded px-4 py-3 flex-row items-center justify-center"
+                    >
+                      <XIcon size={18} color="white" />
+                      <Text className="text-white font-medium ml-2">Delete Product</Text>
+                    </TouchableOpacity>
+                  </>
                 )}
 
                 {selectedReport.reportedUserId && (
-                  <TouchableOpacity
-                    onPress={() =>
-                      handleBanUser(selectedReport.id, selectedReport.reportedUserId)
-                    }
-                    className="bg-red-600 rounded px-4 py-3 flex-row items-center justify-center"
-                  >
-                    <XIcon size={18} color="white" />
-                    <Text className="text-white font-medium ml-2">Ban User</Text>
-                  </TouchableOpacity>
+                  <>
+                    <TouchableOpacity
+                      onPress={() =>
+                        handleFreezeAccount(selectedReport.id, selectedReport.reportedUserId)
+                      }
+                      className="bg-yellow-600 rounded px-4 py-3 flex-row items-center justify-center"
+                    >
+                      <XIcon size={18} color="white" />
+                      <Text className="text-white font-medium ml-2">Freeze Account</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() =>
+                        handleDeleteAccount(selectedReport.id, selectedReport.reportedUserId)
+                      }
+                      className="bg-red-600 rounded px-4 py-3 flex-row items-center justify-center"
+                    >
+                      <XIcon size={18} color="white" />
+                      <Text className="text-white font-medium ml-2">Delete Account</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() =>
+                        handleBanUser(selectedReport.id, selectedReport.reportedUserId)
+                      }
+                      className="bg-red-700 rounded px-4 py-3 flex-row items-center justify-center"
+                    >
+                      <XIcon size={18} color="white" />
+                      <Text className="text-white font-medium ml-2">Ban User</Text>
+                    </TouchableOpacity>
+                  </>
                 )}
 
                 <TouchableOpacity

@@ -117,7 +117,7 @@ export default function SignUpScreen() {
           <View className="mb-4">
             <Text className="text-gray-700 font-medium mb-2">Email</Text>
             <TextInput
-              placeholder="your@university.edu"
+              placeholder="your@email.com"
               value={formData.email}
               onChangeText={(text) => setFormData({ ...formData, email: text })}
               keyboardType="email-address"
