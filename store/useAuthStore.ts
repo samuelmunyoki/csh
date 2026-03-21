@@ -13,6 +13,7 @@ interface AuthState {
   setError: (error: string | null) => void;
 
   signUp: (email: string, password: string, userData: Partial<User>) => Promise<void>;
+  adminSignUp: (username: string, password: string, userData: Partial<User>) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   adminSignIn: (username: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -45,6 +46,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const user = await AuthService.signUp(email, password, userData);
+      set({ user, isAuthenticated: true, loading: false });
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
+      throw error;
+    }
+  },
+
+  adminSignUp: async (username: string, password: string, userData: Partial<User>) => {
+    set({ loading: true, error: null });
+    try {
+      const user = await AuthService.adminSignUp(username, password, userData);
       set({ user, isAuthenticated: true, loading: false });
     } catch (error: any) {
       set({ error: error.message, loading: false });
