@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { EditIcon, TrashIcon } from 'lucide-react-native';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useMarketplaceStore } from '@/store/useMarketplaceStore';
+import { formatPrice } from '@/utils/currency';
 
 export default function MyItemsScreen() {
   const router = useRouter();
@@ -56,7 +57,7 @@ export default function MyItemsScreen() {
             <Text className="text-gray-600 text-sm mt-1">{item.category}</Text>
             <Text className="text-gray-600 text-sm">{item.views} views</Text>
           </View>
-          <Text className="text-blue-600 font-bold text-lg">${item.price}</Text>
+          <Text className="text-blue-600 font-bold text-lg">{formatPrice(item.price)}</Text>
         </View>
         <View className="justify-end items-end p-3 gap-2">
           <TouchableOpacity

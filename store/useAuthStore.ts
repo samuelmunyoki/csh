@@ -14,9 +14,12 @@ interface AuthState {
 
   signUp: (email: string, password: string, userData: Partial<User>) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
+  adminSignIn: (username: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<User>) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  freezeUser: (userId: string, reason?: string) => Promise<void>;
+  deleteUser: (userId: string) => Promise<void>;
   clearError: () => void;
 }
 
@@ -60,6 +63,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  adminSignIn: async (username: string, password: string) => {
+    set({ loading: true, error: null });
+    try {
+      const user = await AuthService.adminSignIn(username, password);
+      set({ user, isAuthenticated: true, loading: false });
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
+      throw error;
+    }
+  },
+
   signOut: async () => {
     set({ loading: true, error: null });
     try {
@@ -91,6 +105,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       await AuthService.sendPasswordReset(email);
+      set({ loading: false });
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
+      throw error;
+    }
+  },
+
+  freezeUser: async (userId: string, reason?: string) => {
+    set({ loading: true, error: null });
+    try {
+      await AuthService.freezeUserAccount(userId, reason);
+      set({ loading: false });
+    } catch (error: any) {
+      set({ error: error.message, loading: false });
+      throw error;
+    }
+  },
+
+  deleteUser: async (userId: string) => {
+    set({ loading: true, error: null });
+    try {
+      await AuthService.deleteUserAccount(userId);
       set({ loading: false });
     } catch (error: any) {
       set({ error: error.message, loading: false });

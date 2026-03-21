@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { PlusIcon, SearchIcon } from 'lucide-react-native';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useMarketplaceStore } from '@/store/useMarketplaceStore';
+import { formatPrice } from '@/utils/currency';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -61,7 +62,7 @@ export default function HomeScreen() {
         <Text className="font-semibold text-gray-900 text-sm" numberOfLines={2}>
           {item.title}
         </Text>
-        <Text className="text-blue-600 font-bold text-lg mt-2">${item.price}</Text>
+        <Text className="text-blue-600 font-bold text-lg mt-2">{formatPrice(item.price)}</Text>
         <Text className="text-gray-500 text-xs mt-1">{item.condition}</Text>
       </View>
     </TouchableOpacity>

@@ -71,12 +71,12 @@ export default function ProfileScreen() {
         <View className="flex-row justify-around mt-6 pt-6 border-t border-gray-200">
           <View className="items-center">
             <Text className="text-2xl font-bold text-blue-600">
-              {user?.completedTransactions || 0}
+              {user?.salesCount || user?.completedTransactions || 0}
             </Text>
             <Text className="text-gray-600 text-sm mt-1">Sales</Text>
           </View>
           <View className="items-center">
-            <Text className="text-2xl font-bold text-blue-600">{user?.rating || 0}</Text>
+            <Text className="text-2xl font-bold text-blue-600">{user?.rating?.toFixed(1) || '0.0'}</Text>
             <Text className="text-gray-600 text-sm mt-1">Rating</Text>
           </View>
           <View className="items-center">

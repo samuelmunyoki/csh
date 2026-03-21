@@ -12,6 +12,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SearchIcon, FilterIcon } from 'lucide-react-native';
 import { useMarketplaceStore } from '@/store/useMarketplaceStore';
+import { formatPrice } from '@/utils/currency';
 
 export default function MarketplaceScreen() {
   const router = useRouter();
@@ -58,7 +59,7 @@ export default function MarketplaceScreen() {
         <Text className="font-semibold text-gray-900" numberOfLines={2}>
           {item.title}
         </Text>
-        <Text className="text-blue-600 font-bold text-lg mt-2">${item.price}</Text>
+        <Text className="text-blue-600 font-bold text-lg mt-2">{formatPrice(item.price)}</Text>
         <View className="flex-row justify-between mt-2">
           <Text className="text-gray-500 text-xs">{item.condition}</Text>
           <Text className="text-gray-400 text-xs">{item.views} views</Text>

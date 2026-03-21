@@ -18,25 +18,39 @@ import { getFirebaseErrorMessage } from '@/utils/firebaseErrors';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { signIn, loading } = useAuthStore();
+  const { signIn, adminSignIn, loading } = useAuthStore();
   const { setLoading } = useLoadingStore();
+  const [loginType, setLoginType] = useState<'student' | 'admin'>('student');
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
+  const [usernameError, setUsernameError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [generalError, setGeneralError] = useState('');
 
   const validateForm = () => {
     let isValid = true;
     setEmailError('');
+    setUsernameError('');
     setPasswordError('');
 
-    if (!email.trim()) {
-      setEmailError('Email is required');
-      isValid = false;
-    } else if (!validateEmail(email)) {
-      setEmailError('Invalid email address');
-      isValid = false;
+    if (loginType === 'student') {
+      if (!email.trim()) {
+        setEmailError('Email is required');
+        isValid = false;
+      } else if (!validateEmail(email)) {
+        setEmailError('Invalid email address');
+        isValid = false;
+      }
+    } else {
+      if (!username.trim()) {
+        setUsernameError('Username is required');
+        isValid = false;
+      } else if (username.length < 3) {
+        setUsernameError('Username must be at least 3 characters');
+        isValid = false;
+      }
     }
 
     if (!password.trim()) {
@@ -54,7 +68,11 @@ export default function LoginScreen() {
       setGeneralError('');
       setLoading(true, 'Signing in...');
       
-      await signIn(email, password);
+      if (loginType === 'student') {
+        await signIn(email, password);
+      } else {
+        await adminSignIn(username, password);
+      }
       
       setLoading(false);
       router.replace('/(app)/(tabs)');
@@ -83,6 +101,26 @@ export default function LoginScreen() {
             <Text className="text-gray-600 text-center">Campus Community Sharing Platform</Text>
           </View>
 
+          {/* Login Type Toggle */}
+          <View className="flex-row bg-gray-200 rounded-lg mb-6 p-1">
+            <TouchableOpacity
+              onPress={() => setLoginType('student')}
+              className={`flex-1 py-3 rounded-md ${loginType === 'student' ? 'bg-blue-600' : ''}`}
+            >
+              <Text className={`text-center font-semibold ${loginType === 'student' ? 'text-white' : 'text-gray-600'}`}>
+                Student
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setLoginType('admin')}
+              className={`flex-1 py-3 rounded-md ${loginType === 'admin' ? 'bg-blue-600' : ''}`}
+            >
+              <Text className={`text-center font-semibold ${loginType === 'admin' ? 'text-white' : 'text-gray-600'}`}>
+                Admin
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Error Message */}
           {generalError && (
             <View className="bg-red-100 border border-red-400 rounded-lg px-4 py-3 mb-6">
@@ -90,23 +128,41 @@ export default function LoginScreen() {
             </View>
           )}
 
-          {/* Email Input */}
-          <View className="mb-4">
-            <Text className="text-gray-700 font-medium mb-2">Email</Text>
-            <TextInput
-              placeholder="your@university.edu"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              editable={!loading}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-900"
-              placeholderTextColor="#9ca3af"
-            />
-            {emailError ? (
-              <Text className="text-red-600 text-sm mt-1">{emailError}</Text>
-            ) : null}
-          </View>
+          {/* Email or Username Input */}
+          {loginType === 'student' ? (
+            <View className="mb-4">
+              <Text className="text-gray-700 font-medium mb-2">Email</Text>
+              <TextInput
+                placeholder="your@email.com"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                editable={!loading}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-900"
+                placeholderTextColor="#9ca3af"
+              />
+              {emailError ? (
+                <Text className="text-red-600 text-sm mt-1">{emailError}</Text>
+              ) : null}
+            </View>
+          ) : (
+            <View className="mb-4">
+              <Text className="text-gray-700 font-medium mb-2">Username</Text>
+              <TextInput
+                placeholder="Enter your admin username"
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                editable={!loading}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-gray-900"
+                placeholderTextColor="#9ca3af"
+              />
+              {usernameError ? (
+                <Text className="text-red-600 text-sm mt-1">{usernameError}</Text>
+              ) : null}
+            </View>
+          )}
 
           {/* Password Input */}
           <View className="mb-6">

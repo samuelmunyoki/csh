@@ -11,6 +11,22 @@ export interface User {
   updatedAt: number;
   rating?: number;
   completedTransactions?: number;
+  salesCount?: number;
+  frozen?: boolean;
+  frozenReason?: string;
+  frozenAt?: number;
+  username?: string;
+  adminAccount?: boolean;
+}
+
+// Rating Types
+export interface Rating {
+  id: string;
+  fromUserId: string;
+  toUserId: string;
+  score: number;
+  comment?: string;
+  createdAt: number;
 }
 
 // Marketplace Item Types

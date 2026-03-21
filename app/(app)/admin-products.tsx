@@ -15,6 +15,7 @@ import { MarketplaceService } from '@/services/marketplaceService';
 import { AuthService } from '@/services/authService';
 import { useAuthStore } from '@/store/useAuthStore';
 import { MarketplaceItem, User } from '@/types';
+import { formatPrice } from '@/utils/currency';
 
 export default function AdminProductsScreen() {
   const router = useRouter();
@@ -134,7 +135,7 @@ export default function AdminProductsScreen() {
         <View className="bg-gray-50 rounded-lg p-3 mb-4">
           <View className="flex-row justify-between mb-2">
             <Text className="text-gray-600">Price:</Text>
-            <Text className="font-bold text-blue-600">${selectedItem.price}</Text>
+            <Text className="font-bold text-blue-600">{formatPrice(selectedItem.price)}</Text>
           </View>
           <View className="flex-row justify-between mb-2">
             <Text className="text-gray-600">Category:</Text>
