@@ -90,6 +90,45 @@ export class AuthService {
     }
   }
 
+  static async adminSignUp(username: string, password: string, userData: Partial<User>): Promise<User> {
+    try {
+      // Create a temporary email for the admin account
+      const adminEmail = `admin_${username}@campushare.local`;
+      const { user: firebaseUser } = await createUserWithEmailAndPassword(auth, adminEmail, password);
+
+      const userProfile: User = {
+        id: firebaseUser.uid,
+        email: adminEmail,
+        name: userData.name || username,
+        university: userData.university || 'Administrator',
+        role: 'admin',
+        username,
+        adminAccount: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        completedTransactions: 0,
+        rating: 0,
+      };
+
+      // Save user profile
+      await set(ref(db, `users/${firebaseUser.uid}`), userProfile);
+
+      // Save admin credentials
+      const adminAccountRef = ref(db, `adminAccounts/${username}`);
+      await set(adminAccountRef, {
+        username,
+        password, // In production, should be hashed with bcrypt
+        userId: firebaseUser.uid,
+        createdAt: Date.now(),
+      });
+
+      toastSuccess('Admin account created successfully!');
+      return userProfile;
+    } catch (error: any) {
+      handleError(error);
+    }
+  }
+
   static async signIn(email: string, password: string): Promise<User> {
     try {
       const { user: firebaseUser } = await signInWithEmailAndPassword(auth, email, password);
