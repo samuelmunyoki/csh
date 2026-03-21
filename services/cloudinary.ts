@@ -1,6 +1,5 @@
 import { CloudinaryUploadResponse } from '@/types';
 import axios from 'axios';
-import * as FileSystem from 'expo-file-system';
 
 const CLOUDINARY_CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const CLOUDINARY_UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
@@ -11,33 +10,25 @@ export class CloudinaryService {
     folder: string = 'campushare-hub',
     onProgress?: (progress: number) => void
   ): Promise<CloudinaryUploadResponse> {
+
     try {
-      // Validate image URI
       if (!this.validateImageUri(imageUri)) {
         throw new Error('Invalid image format. Please use JPG, PNG, GIF, or WebP.');
       }
 
-      // Check file size (5MB limit)
-      const fileInfo = await FileSystem.getInfoAsync(imageUri);
-      if (fileInfo.size && fileInfo.size > 5 * 1024 * 1024) {
-        throw new Error('Image size must be less than 5MB.');
-      }
-
       onProgress?.(10);
 
-      // Read the image file
-      const base64 = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      onProgress?.(30);
-
       const formData = new FormData();
-      formData.append('file', `data:image/jpeg;base64,${base64}`);
+
+      formData.append('file', {
+        uri: imageUri,
+        type: 'image/jpeg',
+        name: 'upload.jpg',
+      } as any);
+
       formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET || '');
       formData.append('folder', folder);
-      formData.append('resource_type', 'auto');
-      formData.append('tags', folder);
+      formData.append('resource_type', 'image');
 
       const response = await axios.post(
         `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
@@ -49,7 +40,7 @@ export class CloudinaryService {
           onUploadProgress: (progressEvent) => {
             if (progressEvent.total) {
               const percentCompleted = Math.round(
-                (progressEvent.loaded / progressEvent.total) * 60 + 30
+                (progressEvent.loaded / progressEvent.total) * 100
               );
               onProgress?.(percentCompleted);
             }
@@ -74,17 +65,9 @@ export class CloudinaryService {
       };
     } catch (error: any) {
       console.error('[Cloudinary] Upload failed:', error);
-      
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        throw new Error('Cloudinary credentials are invalid. Please check your configuration.');
-      }
-      
+
       if (error.response?.status === 400) {
         throw new Error(error.response.data?.error?.message || 'Invalid image data');
-      }
-      
-      if (error.message.includes('timeout')) {
-        throw new Error('Image upload timed out. Please check your connection.');
       }
 
       throw error;

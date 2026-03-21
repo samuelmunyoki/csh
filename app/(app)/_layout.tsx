@@ -1,43 +1,36 @@
 import React from 'react';
-import { Redirect, Stack } from 'expo-router';
+import { Redirect, Stack, useRouter } from 'expo-router';
 import { TouchableOpacity } from 'react-native';
 import { ArrowLeftIcon } from 'lucide-react-native';
 import { useAuthStore } from '@/store/useAuthStore';
 
+const BackButton = () => {
+  const router = useRouter();
+  return (
+    <TouchableOpacity onPress={() => router.back()} className="p-2">
+      <ArrowLeftIcon size={24} color="#2563eb" />
+    </TouchableOpacity>
+  );
+};
+
 export default function AppLayout() {
   const { isAuthenticated, loading } = useAuthStore();
 
-  if (loading) {
-    return null;
-  }
+  if (loading) return null;
 
-  // If user is not authenticated, redirect to login
-  if (!isAuthenticated) {
-    return <Redirect href="/(auth)" />;
-  }
+  if (!isAuthenticated) return <Redirect href="/(auth)" />;
 
   return (
     <Stack
       screenOptions={{
         headerShown: false,
-        animationEnabled: true,
         contentStyle: { backgroundColor: '#ffffff' },
       }}
     >
       <Stack.Screen name="(tabs)" options={{ title: 'Home' }} />
       <Stack.Screen
         name="item-details"
-        options={{
-          title: 'Item Details',
-          presentation: 'modal',
-          headerShown: true,
-          headerBackTitleVisible: false,
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => {}} className="p-2">
-              <ArrowLeftIcon size={24} color="#2563eb" />
-            </TouchableOpacity>
-          ),
-        }}
+        options={{ title: 'Item Details', presentation: 'modal' }}
       />
       <Stack.Screen
         name="create-item"
@@ -46,14 +39,9 @@ export default function AppLayout() {
           presentation: 'modal',
           headerShown: true,
           headerBackTitleVisible: false,
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => {}} className="p-2">
-              <ArrowLeftIcon size={24} color="#2563eb" />
-            </TouchableOpacity>
-          ),
+          headerLeft: () => <BackButton />,
         }}
       />
-      <Stack.Screen name="profile" options={{ title: 'Profile' }} />
       <Stack.Screen
         name="admin-moderation"
         options={{
@@ -61,11 +49,7 @@ export default function AppLayout() {
           presentation: 'modal',
           headerShown: true,
           headerBackTitleVisible: false,
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => {}} className="p-2">
-              <ArrowLeftIcon size={24} color="#2563eb" />
-            </TouchableOpacity>
-          ),
+          headerLeft: () => <BackButton />,
         }}
       />
       <Stack.Screen
@@ -75,11 +59,7 @@ export default function AppLayout() {
           presentation: 'modal',
           headerShown: true,
           headerBackTitleVisible: false,
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => {}} className="p-2">
-              <ArrowLeftIcon size={24} color="#2563eb" />
-            </TouchableOpacity>
-          ),
+          headerLeft: () => <BackButton />,
         }}
       />
       <Stack.Screen
@@ -89,11 +69,7 @@ export default function AppLayout() {
           presentation: 'modal',
           headerShown: true,
           headerBackTitleVisible: false,
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => {}} className="p-2">
-              <ArrowLeftIcon size={24} color="#2563eb" />
-            </TouchableOpacity>
-          ),
+          headerLeft: () => <BackButton />,
         }}
       />
       <Stack.Screen
@@ -103,13 +79,10 @@ export default function AppLayout() {
           presentation: 'modal',
           headerShown: true,
           headerBackTitleVisible: false,
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => {}} className="p-2">
-              <ArrowLeftIcon size={24} color="#2563eb" />
-            </TouchableOpacity>
-          ),
+          headerLeft: () => <BackButton />,
         }}
       />
+      <Stack.Screen name="profile" options={{ title: 'Profile' }} />
     </Stack>
   );
 }

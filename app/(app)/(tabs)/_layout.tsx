@@ -35,13 +35,13 @@ export default function TabsLayout() {
         }}
       />
 
-      <Tabs.Screen
+      {/* <Tabs.Screen
         name="saved"
         options={{
           title: 'Saved',
           tabBarIcon: ({ color, size }) => <HeartIcon color={color} size={size} />,
         }}
-      />
+      /> */}
 
       <Tabs.Screen
         name="messages"

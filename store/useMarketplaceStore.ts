@@ -1,4 +1,5 @@
 import { MarketplaceService } from '@/services/marketplaceService';
+import { AuthService } from '@/services/authService';
 import { MarketplaceItem } from '@/types';
 import { create } from 'zustand';
 
@@ -37,25 +38,11 @@ export const useMarketplaceStore = create<MarketplaceState>((set, get) => ({
   loading: false,
   error: null,
 
-  setItems: (items: MarketplaceItem[]) => {
-    set({ items });
-  },
-
-  setSelectedItem: (item: MarketplaceItem | null) => {
-    set({ selectedItem: item });
-  },
-
-  setSavedItems: (items: MarketplaceItem[]) => {
-    set({ savedItems: items });
-  },
-
-  setLoading: (loading: boolean) => {
-    set({ loading });
-  },
-
-  setError: (error: string | null) => {
-    set({ error });
-  },
+  setItems: (items) => set({ items }),
+  setSelectedItem: (item) => set({ selectedItem: item }),
+  setSavedItems: (items) => set({ savedItems: items }),
+  setLoading: (loading) => set({ loading }),
+  setError: (error) => set({ error }),
 
   fetchItems: async (category?: string) => {
     set({ loading: true, error: null });
@@ -81,9 +68,24 @@ export const useMarketplaceStore = create<MarketplaceState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const item = await MarketplaceService.getItemById(itemId);
-      if (item) {
-        set({ selectedItem: item, loading: false });
+      if (!item) {
+        set({ loading: false });
+        return;
       }
+
+      // Fetch vendor details if not already populated
+      if (item.vendorId && !item.vendor) {
+        try {
+          const vendor = await AuthService.getUserById(item.vendorId);
+          if (vendor) {
+            item.vendor = vendor;
+          }
+        } catch (e) {
+          console.warn('[useMarketplaceStore] Could not fetch vendor:', e);
+        }
+      }
+
+      set({ selectedItem: item, loading: false });
     } catch (error: any) {
       set({ error: error.message, loading: false });
     }
@@ -115,14 +117,9 @@ export const useMarketplaceStore = create<MarketplaceState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const updatedItem = await MarketplaceService.updateItem(itemId, updates);
-
-      // Update in items list
       const items = get().items.map((item) => (item.id === itemId ? updatedItem : item));
       set({ items, loading: false });
-
-      // Update selected item if it's the same
-      const selectedItem = get().selectedItem;
-      if (selectedItem?.id === itemId) {
+      if (get().selectedItem?.id === itemId) {
         set({ selectedItem: updatedItem });
       }
     } catch (error: any) {
@@ -179,7 +176,5 @@ export const useMarketplaceStore = create<MarketplaceState>((set, get) => ({
     }
   },
 
-  clearError: () => {
-    set({ error: null });
-  },
+  clearError: () => set({ error: null }),
 }));

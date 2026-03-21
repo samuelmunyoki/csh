@@ -3,9 +3,9 @@ import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import Toast from 'react-native-toast-message';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'; 
-// 1. Import LogBox to hide the internal library warning
-import { LogBox } from 'react-native'; 
+import { LogBox, ToastAndroid } from 'react-native'; 
 import { useAuthStore } from '@/store/useAuthStore';
 import { useLoadingStore } from '@/store/useLoadingStore';
 import { NotificationService } from '@/services/notificationService';
@@ -46,7 +46,7 @@ export default function RootLayout() {
   return (
     <SafeAreaView style={{ flex: 1 }}>
       {/* 3. Ensure StatusBar is configured for the new Android logic */}
-      <StatusBar/>
+      <StatusBar backgroundColor='#000000' />
       <Stack
         screenOptions={{
           headerShown: false,
@@ -58,8 +58,8 @@ export default function RootLayout() {
         <Stack.Screen name="(app)" options={{ headerShown: false }} />
       </Stack>
       
-      {/* Global Loading Overlay */}
       <LoadingOverlay visible={isLoading} message={loadingMessage} />
+      <Toast/>
     </SafeAreaView>
   );
 }

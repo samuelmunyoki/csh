@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "androidStatusBar": {
-      "translucent": true
+      "translucent": true,
+      "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true
@@ -22,7 +23,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.smuthembwa.CampuShare"
     },
     "web": {
       "bundler": "metro",
@@ -47,6 +49,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "20142460-5f12-47f5-a741-3780f7916fd5"
+      }
     }
   }
 }

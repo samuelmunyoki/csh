@@ -66,13 +66,13 @@ export interface Message {
 
 export interface Conversation {
   id: string;
-  participants: string[];
+  participants: string[] | Record<string, boolean>; 
   participantDetails?: User[];
   lastMessage?: Message;
   lastMessageAt: number;
   unreadCount: number;
   createdAt: number;
-}
+} 
 
 // Transaction Types
 export interface Transaction {

@@ -95,16 +95,11 @@ export default function ProfileScreen() {
           label="My Items"
           onPress={() => router.push('/(app)/my-items')}
         />
-        <MenuOption
-          icon={HeartIcon}
-          label="Saved Items"
-          onPress={() => router.push('/(app)/(tabs)/saved')}
-        />
         
         {/* Admin Only Options */}
         {user?.role === 'admin' && (
           <>
-            <View className="bg-blue-50 px-4 py-2 mt-2 mb-2 rounded-lg">
+            <View className="bg-blue-50 px-4 py-2 mb-2 rounded-lg">
               <Text className="text-blue-700 font-semibold text-sm">Admin Panel</Text>
             </View>
             <MenuOption
@@ -120,11 +115,6 @@ export default function ProfileScreen() {
           </>
         )}
         
-        <MenuOption
-          icon={SettingsIcon}
-          label="Settings"
-          onPress={() => router.push('/(app)/settings')}
-        />
       </View>
 
       {/* Sign Out */}

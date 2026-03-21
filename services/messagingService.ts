@@ -1,6 +1,6 @@
 import { db } from '@/firebaseConfig';
 import { Message, Conversation } from '@/types';
-import { ref, set, get, update, push, query, orderByChild, limitToLast, onValue, off } from 'firebase/database';
+import { ref, set, get, update, push, onValue } from 'firebase/database';
 
 export class MessagingService {
   static async sendMessage(
@@ -14,63 +14,44 @@ export class MessagingService {
       const messagesRef = ref(db, 'messages');
       const newMessageRef = push(messagesRef);
 
+      // Firebase rejects undefined values — build object with only defined fields
       const message: Message = {
         id: newMessageRef.key || '',
         senderId,
         recipientId,
         content,
-        images,
-        transactionId,
         read: false,
         createdAt: Date.now(),
         updatedAt: Date.now(),
+        ...(images && images.length > 0 ? { images } : {}),
+        ...(transactionId ? { transactionId } : {}),
       };
 
-      await set(newMessageRef, message);
+      // Strip any remaining undefined values before writing to Firebase
+      const cleanMessage = JSON.parse(JSON.stringify(message));
 
-      // Update conversation
+      await set(newMessageRef, cleanMessage);
+
       const conversationId = [senderId, recipientId].sort().join('_');
       const conversationRef = ref(db, `conversations/${conversationId}`);
 
+      // Store participants as object { userId: true } — correct for Firebase RTDB
       await update(conversationRef, {
-        lastMessage: message,
+        id: conversationId,
+        lastMessage: cleanMessage,
         lastMessageAt: Date.now(),
         [`participants/${senderId}`]: true,
         [`participants/${recipientId}`]: true,
       });
 
-      // Add message to user's conversation
+      // Increment unread count for recipient
+      const unreadCount = await this.getUnreadCount(recipientId, conversationId);
       const userConvRef = ref(db, `users/${recipientId}/conversations/${conversationId}`);
-      await set(userConvRef, {
-        unreadCount: (await this.getUnreadCount(recipientId, conversationId)) + 1,
-      });
+      await set(userConvRef, { unreadCount: unreadCount + 1 });
 
-      return message;
+      return cleanMessage;
     } catch (error: any) {
       throw new Error(error.message || 'Failed to send message');
-    }
-  }
-
-  static async getConversations(userId: string): Promise<Conversation[]> {
-    try {
-      const conversationsRef = ref(db, 'conversations');
-      const snapshot = await get(conversationsRef);
-
-      if (!snapshot.exists()) {
-        return [];
-      }
-
-      const allConversations = Object.values(snapshot.val()) as Conversation[];
-      const userConversations = allConversations.filter((conv) =>
-        Object.keys(conv.participants || {}).includes(userId)
-      );
-
-      // Sort by last message date
-      userConversations.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
-
-      return userConversations;
-    } catch (error: any) {
-      throw new Error(error.message || 'Failed to fetch conversations');
     }
   }
 
@@ -79,23 +60,18 @@ export class MessagingService {
       const messagesRef = ref(db, 'messages');
       const snapshot = await get(messagesRef);
 
-      if (!snapshot.exists()) {
-        return [];
-      }
+      if (!snapshot.exists()) return [];
 
       const allMessages = Object.values(snapshot.val()) as Message[];
-      const conversationMessages = allMessages.filter(
-        (msg) =>
-          (msg.senderId === conversationId.split('_')[0] &&
-            msg.recipientId === conversationId.split('_')[1]) ||
-          (msg.senderId === conversationId.split('_')[1] &&
-            msg.recipientId === conversationId.split('_')[0])
-      );
+      const [id1, id2] = conversationId.split('_');
 
-      // Sort by date (oldest first)
-      conversationMessages.sort((a, b) => a.createdAt - b.createdAt);
-
-      return conversationMessages;
+      return allMessages
+        .filter(
+          (msg) =>
+            (msg.senderId === id1 && msg.recipientId === id2) ||
+            (msg.senderId === id2 && msg.recipientId === id1)
+        )
+        .sort((a, b) => a.createdAt - b.createdAt);
     } catch (error: any) {
       throw new Error(error.message || 'Failed to fetch messages');
     }
@@ -103,8 +79,7 @@ export class MessagingService {
 
   static async markMessageAsRead(messageId: string): Promise<void> {
     try {
-      const messageRef = ref(db, `messages/${messageId}`);
-      await update(messageRef, { read: true });
+      await update(ref(db, `messages/${messageId}`), { read: true });
     } catch (error: any) {
       throw new Error(error.message || 'Failed to mark message as read');
     }
@@ -112,8 +87,7 @@ export class MessagingService {
 
   static async markConversationAsRead(userId: string, conversationId: string): Promise<void> {
     try {
-      const userConvRef = ref(db, `users/${userId}/conversations/${conversationId}`);
-      await update(userConvRef, { unreadCount: 0 });
+      await update(ref(db, `users/${userId}/conversations/${conversationId}`), { unreadCount: 0 });
     } catch (error: any) {
       throw new Error(error.message || 'Failed to mark conversation as read');
     }
@@ -121,27 +95,20 @@ export class MessagingService {
 
   static async getUnreadCount(userId: string, conversationId: string): Promise<number> {
     try {
-      const messagesRef = ref(db, 'messages');
-      const snapshot = await get(messagesRef);
+      const snapshot = await get(ref(db, 'messages'));
+      if (!snapshot.exists()) return 0;
 
-      if (!snapshot.exists()) {
-        return 0;
-      }
-
-      const allMessages = Object.values(snapshot.val()) as Message[];
       const [id1, id2] = conversationId.split('_');
+      const allMessages = Object.values(snapshot.val()) as Message[];
 
-      const unreadCount = allMessages.filter(
+      return allMessages.filter(
         (msg) =>
           msg.recipientId === userId &&
           !msg.read &&
           ((msg.senderId === id1 && msg.recipientId === id2) ||
             (msg.senderId === id2 && msg.recipientId === id1))
       ).length;
-
-      return unreadCount;
-    } catch (error: any) {
-      console.error('[MessagingService] Error getting unread count:', error);
+    } catch {
       return 0;
     }
   }
@@ -150,56 +117,60 @@ export class MessagingService {
     conversationId: string,
     callback: (messages: Message[]) => void
   ): () => void {
-    try {
-      const messagesRef = ref(db, 'messages');
+    const messagesRef = ref(db, 'messages');
 
-      const unsubscribe = onValue(messagesRef, (snapshot) => {
-        if (snapshot.exists()) {
-          const allMessages = Object.values(snapshot.val()) as Message[];
-          const [id1, id2] = conversationId.split('_');
+    const unsubscribe = onValue(messagesRef, (snapshot) => {
+      // Always call callback — even with empty array — so loading state resolves
+      if (!snapshot.exists()) {
+        callback([]);
+        return;
+      }
 
-          const conversationMessages = allMessages.filter(
-            (msg) =>
-              (msg.senderId === id1 && msg.recipientId === id2) ||
-              (msg.senderId === id2 && msg.recipientId === id1)
-          );
+      const [id1, id2] = conversationId.split('_');
+      const allMessages = Object.values(snapshot.val()) as Message[];
 
-          conversationMessages.sort((a, b) => a.createdAt - b.createdAt);
-          callback(conversationMessages);
-        }
-      });
+      const filtered = allMessages
+        .filter(
+          (msg) =>
+            (msg.senderId === id1 && msg.recipientId === id2) ||
+            (msg.senderId === id2 && msg.recipientId === id1)
+        )
+        .sort((a, b) => a.createdAt - b.createdAt);
 
-      return unsubscribe;
-    } catch (error: any) {
-      console.error('[MessagingService] Error subscribing to messages:', error);
-      return () => {};
-    }
+      callback(filtered);
+    });
+
+    return unsubscribe;
   }
 
   static subscribeToConversations(
     userId: string,
     callback: (conversations: Conversation[]) => void
   ): () => void {
-    try {
-      const conversationsRef = ref(db, 'conversations');
+    const conversationsRef = ref(db, 'conversations');
 
-      const unsubscribe = onValue(conversationsRef, (snapshot) => {
-        if (snapshot.exists()) {
-          const allConversations = Object.values(snapshot.val()) as Conversation[];
-          const userConversations = allConversations.filter((conv) =>
-            Object.keys(conv.participants || {}).includes(userId)
-          );
+    const unsubscribe = onValue(conversationsRef, (snapshot) => {
+      // Always call callback — even with empty array — so loading state resolves
+      if (!snapshot.exists()) {
+        callback([]);
+        return;
+      }
 
-          userConversations.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
-          callback(userConversations);
-        }
-      });
+      const allConversations = Object.values(snapshot.val()) as Conversation[];
 
-      return unsubscribe;
-    } catch (error: any) {
-      console.error('[MessagingService] Error subscribing to conversations:', error);
-      return () => {};
-    }
+      const userConversations = allConversations
+        .filter((conv) => {
+          const participants = conv.participants;
+          // Handle both array and object { userId: true } shapes
+          if (Array.isArray(participants)) return participants.includes(userId);
+          return Object.keys(participants || {}).includes(userId);
+        })
+        .sort((a, b) => (b.lastMessageAt ?? 0) - (a.lastMessageAt ?? 0));
+
+      callback(userConversations);
+    });
+
+    return unsubscribe;
   }
 
   static getTotalUnreadCount(conversations: Conversation[]): number {

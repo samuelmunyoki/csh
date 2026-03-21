@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,10 @@ import {
   ActivityIndicator,
   Image,
   Alert,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeftIcon, HeartIcon } from 'lucide-react-native';
@@ -16,6 +20,7 @@ import { useLoadingStore } from '@/store/useLoadingStore';
 import { TransactionService } from '@/services/transactionService';
 import { DonationService } from '@/services/donationService';
 import { MarketplaceService } from '@/services/marketplaceService';
+import { MessagingService } from '@/services/messagingService';
 
 export default function ItemDetailsScreen() {
   const router = useRouter();
@@ -23,6 +28,9 @@ export default function ItemDetailsScreen() {
   const { user } = useAuthStore();
   const { selectedItem, loading, fetchItemById } = useMarketplaceStore();
   const { setLoading } = useLoadingStore();
+
+  const [donationModalVisible, setDonationModalVisible] = useState(false);
+  const [donationMessage, setDonationMessage] = useState('');
 
   useEffect(() => {
     if (params.id) {
@@ -36,8 +44,7 @@ export default function ItemDetailsScreen() {
 
   const handleBuyItem = async () => {
     if (!user || !selectedItem) return;
-    
-    // Can't buy own item
+
     if (user.id === selectedItem.vendorId) {
       Alert.alert('Error', "You can't buy your own item");
       return;
@@ -53,9 +60,8 @@ export default function ItemDetailsScreen() {
           onPress: async () => {
             try {
               setLoading(true, 'Processing purchase...');
-              
-              // Create transaction with cash payment
-              const transaction = await TransactionService.initiateTransaction(
+
+              await TransactionService.initiateTransaction(
                 selectedItem.id,
                 user.id,
                 selectedItem.vendorId,
@@ -64,16 +70,19 @@ export default function ItemDetailsScreen() {
                 'Cash payment upon meeting'
               );
 
-              // Mark item as sold
               await MarketplaceService.markItemAsSold(selectedItem.id);
+
+              // Open a conversation with the seller
+              await MessagingService.sendMessage(
+                user.id,
+                selectedItem.vendorId,
+                `Hi! I just purchased "${selectedItem.title}" for $${selectedItem.price}. When can we arrange pickup?`
+              );
 
               setLoading(false);
               Alert.alert('Success', 'Purchase initiated! Please coordinate with the seller to arrange pickup.');
-              
-              // Go back to marketplace
-              setTimeout(() => {
-                router.back();
-              }, 500);
+
+              setTimeout(() => router.back(), 500);
             } catch (error: any) {
               setLoading(false);
               Alert.alert('Error', error.message || 'Failed to process purchase');
@@ -84,54 +93,52 @@ export default function ItemDetailsScreen() {
     );
   };
 
-  const handleRequestDonation = async () => {
+  const handleRequestDonation = () => {
     if (!user || !selectedItem) return;
 
-    // Can't request own donation
     if (user.id === selectedItem.vendorId) {
       Alert.alert('Error', "You can't request your own donation");
       return;
     }
 
-    Alert.prompt(
-      'Request Donation',
-      'Tell the donor why you need this item:',
-      [
-        { text: 'Cancel', onPress: () => {} },
-        {
-          text: 'Send Request',
-          onPress: async (message) => {
-            if (!message || !message.trim()) {
-              Alert.alert('Error', 'Please provide a reason');
-              return;
-            }
+    setDonationMessage('');
+    setDonationModalVisible(true);
+  };
 
-            try {
-              setLoading(true, 'Sending donation request...');
+  const handleSubmitDonationRequest = async () => {
+    if (!user || !selectedItem) return;
 
-              // Create donation request
-              const donation = await DonationService.requestDonation(
-                selectedItem.id,
-                selectedItem.vendorId,
-                user.id,
-                message.trim()
-              );
+    if (!donationMessage.trim()) {
+      Alert.alert('Error', 'Please provide a reason');
+      return;
+    }
 
-              setLoading(false);
-              Alert.alert('Success', 'Donation request sent! The donor will review it.');
+    setDonationModalVisible(false);
 
-              // Go back to marketplace
-              setTimeout(() => {
-                router.back();
-              }, 500);
-            } catch (error: any) {
-              setLoading(false);
-              Alert.alert('Error', error.message || 'Failed to send donation request');
-            }
-          },
-        },
-      ]
-    );
+    try {
+      setLoading(true, 'Sending donation request...');
+
+      await DonationService.requestDonation(
+        selectedItem.id,
+        selectedItem.vendorId,
+        user.id,
+        donationMessage.trim()
+      );
+
+      await MessagingService.sendMessage(
+        user.id,
+        selectedItem.vendorId,
+        donationMessage.trim()
+      );
+
+      setLoading(false);
+      Alert.alert('Success', 'Donation request sent! The donor will review it.');
+
+      setTimeout(() => router.back(), 500);
+    } catch (error: any) {
+      setLoading(false);
+      Alert.alert('Error', error.message || 'Failed to send donation request');
+    }
   };
 
   if (loading || !selectedItem) {
@@ -145,7 +152,7 @@ export default function ItemDetailsScreen() {
   return (
     <View className="flex-1 bg-gray-50">
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Image Carousel */}
+        {/* Image */}
         {selectedItem.images[0] && (
           <Image
             source={{ uri: selectedItem.images[0] }}
@@ -157,7 +164,7 @@ export default function ItemDetailsScreen() {
         {/* Back Button */}
         <TouchableOpacity
           onPress={() => router.back()}
-          className="absolute top-4 left-4 bg-white rounded-full p-2"
+          className="absolute top-7  left-4 bg-white rounded-full p-4"
         >
           <ArrowLeftIcon size={24} color="#1f2937" />
         </TouchableOpacity>
@@ -170,10 +177,7 @@ export default function ItemDetailsScreen() {
               <Text className="text-2xl font-bold text-gray-900">{selectedItem.title}</Text>
               <Text className="text-blue-600 text-2xl font-bold mt-2">${selectedItem.price}</Text>
             </View>
-            <TouchableOpacity
-              onPress={handleSaveItem}
-              className="p-2 rounded-full bg-gray-100"
-            >
+            <TouchableOpacity onPress={handleSaveItem} className="p-2 rounded-full bg-gray-100">
               <HeartIcon size={24} color="#ef4444" />
             </TouchableOpacity>
           </View>
@@ -181,14 +185,10 @@ export default function ItemDetailsScreen() {
           {/* Category and Condition */}
           <View className="flex-row gap-2 mb-6">
             <View className="bg-blue-100 rounded-full px-3 py-1">
-              <Text className="text-blue-600 text-sm font-medium capitalize">
-                {selectedItem.category}
-              </Text>
+              <Text className="text-blue-600 text-sm font-medium capitalize">{selectedItem.category}</Text>
             </View>
             <View className="bg-gray-100 rounded-full px-3 py-1">
-              <Text className="text-gray-600 text-sm font-medium capitalize">
-                {selectedItem.condition}
-              </Text>
+              <Text className="text-gray-600 text-sm font-medium capitalize">{selectedItem.condition}</Text>
             </View>
           </View>
 
@@ -218,9 +218,7 @@ export default function ItemDetailsScreen() {
             </View>
             <View>
               <Text className="text-gray-500 text-sm">Status</Text>
-              <Text className="text-green-600 font-semibold capitalize">
-                {selectedItem.status}
-              </Text>
+              <Text className="text-green-600 font-semibold capitalize">{selectedItem.status}</Text>
             </View>
           </View>
 
@@ -239,9 +237,7 @@ export default function ItemDetailsScreen() {
                 </Text>
               </View>
               <View className="bg-yellow-100 rounded-full px-3 py-1">
-                <Text className="text-yellow-700 font-bold">
-                  {selectedItem.vendor?.rating || 0}★
-                </Text>
+                <Text className="text-yellow-700 font-bold">{selectedItem.vendor?.rating || 0}★</Text>
               </View>
             </View>
           </View>
@@ -251,30 +247,76 @@ export default function ItemDetailsScreen() {
       {/* Action Buttons */}
       <View className="bg-white border-t border-gray-200 px-4 py-4">
         {user?.id !== selectedItem.vendorId ? (
-          <>
-            <View className="flex-row gap-3">
-              <TouchableOpacity
-                onPress={handleBuyItem}
-                className="flex-1 bg-blue-600 rounded-lg px-4 py-3 items-center"
-              >
-                <Text className="text-white font-semibold">Buy Now</Text>
-                <Text className="text-blue-100 text-xs mt-1">Cash payment</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleRequestDonation}
-                className="flex-1 bg-green-600 rounded-lg px-4 py-3 items-center"
-              >
-                <Text className="text-white font-semibold">Request</Text>
-                <Text className="text-green-100 text-xs mt-1">Donation</Text>
-              </TouchableOpacity>
-            </View>
-          </>
+          <View className="flex-row gap-3">
+            <TouchableOpacity
+              onPress={handleBuyItem}
+              className="flex-1 bg-blue-600 rounded-lg px-4 py-3 items-center"
+            >
+              <Text className="text-white font-semibold">Buy Now</Text>
+              <Text className="text-blue-100 text-xs mt-1">Cash payment</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleRequestDonation}
+              className="flex-1 bg-green-600 rounded-lg px-4 py-3 items-center"
+            >
+              <Text className="text-white font-semibold">Request</Text>
+              <Text className="text-green-100 text-xs mt-1">Donation</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <View className="bg-gray-100 rounded-lg px-4 py-3 items-center">
             <Text className="text-gray-600 font-medium">This is your item</Text>
           </View>
         )}
       </View>
+
+      {/* Donation Request Modal */}
+      <Modal
+        visible={donationModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDonationModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          className="flex-1"
+        >
+          <View className="flex-1 justify-center items-center bg-black/50 px-6">
+            <View className="bg-white rounded-2xl p-6 w-full">
+              <Text className="text-gray-900 text-lg font-bold mb-1">Request Donation</Text>
+              <Text className="text-gray-500 text-sm mb-4">
+                Tell the donor why you need this item:
+              </Text>
+              <TextInput
+                value={donationMessage}
+                onChangeText={setDonationMessage}
+                placeholder="e.g. I need this for my family because..."
+                placeholderTextColor="#9ca3af"
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                className="border border-gray-200 rounded-lg px-3 py-3 text-gray-900 text-sm mb-5"
+                style={{ minHeight: 100 }}
+                autoFocus
+              />
+              <View className="flex-row gap-3">
+                <TouchableOpacity
+                  onPress={() => setDonationModalVisible(false)}
+                  className="flex-1 bg-gray-100 rounded-lg py-3 items-center"
+                >
+                  <Text className="text-gray-700 font-semibold">Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleSubmitDonationRequest}
+                  className="flex-1 bg-green-600 rounded-lg py-3 items-center"
+                >
+                  <Text className="text-white font-semibold">Send Request</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
